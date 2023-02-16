@@ -1,1 +1,4 @@
 host_data
+*.pth
+*.tar
+*.pyc
