@@ -13,6 +13,6 @@ Body:
     Envvars: ["DATA_DIR": train_data1/LungDiseaseDataset, "OUTPUT_DIR": output, "MODEL_DIR": model, "MAX_EPOCHS": 2, "MIN_PEERS": 2]
     PrivateContent: /tmp/test/host_data
     SharedContent:
-    -   Src: /home/user/swarm-learning/workspace_lung_disease/model
+    -   Src: /home/user/swarm-learning/workspace_lung_disease/sl_version/model
         Tgt: /tmp/test/model
         MType: BIND

@@ -33,19 +33,19 @@ nodes :
             - attribute :
                 aType : KEY
                 mType : BIND
-                src : "/home/user/swarm-learning/workspace_lung_disease/lung-pyt-cert/cert/sl-1-key.pem"
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/sl-1-key.pem"
                 tgt : "/swarm-cert/sl-1-key.pem"
                 subPath : null
             - attribute :
                 aType : CERT
                 mType : BIND
-                src : "/home/user/swarm-learning/workspace_lung_disease/lung-pyt-cert/cert/sl-1-cert.pem"
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/sl-1-cert.pem"
                 tgt : "/swarm-cert/sl-1-cert.pem"
                 subPath : null
             - attribute :
                 aType : CAPATH
                 mType : BIND
-                src : "/home/user/swarm-learning/workspace_lung_disease/lung-pyt-cert/cert/ca/capath"
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/ca/capath"
                 tgt : "/swarm-cert/capath"
                 subPath : null
         slhostname : sl1
@@ -53,74 +53,12 @@ nodes :
         slport : 16000
         usrhostname : user1
         privatedata :
-            src: "/home/user/swarm-learning/workspace_lung_disease/host_data"
+            src: "/home/user/swarm-learning/workspace_lung_disease/sl_version/host_data"
             mType : BIND
         slenvvars : null
         usrenvvars : null
         usrcontaineropts : 
             - gpus : "all"
-#    - slnodedef :
-#        idx : 1
-#        identity :
-#            - attribute :
-#                aType : KEY
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-pyt-cert/cert/sl-1-key.pem"
-#                tgt : "/swarm-cert/sl-2-key.pem"
-#                subPath : null
-#            - attribute :
-#                aType : CERT
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-py-cert/cert/sl-1-cert.pem"
-#                tgt : "/swarm-cert/sl-2-cert.pem"
-#                subPath : null
-#            - attribute :
-#                aType : CAPATH
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-pyt-cert/cert/ca/capath"
-#                tgt : "/swarm-cert/capath"
-#                subPath : null
-#        slhostname : sl2
-#        slhostip   : 10.60.3.52
-#        slport : 17000
-#        usrhostname : user2
-#        privatedata :
-#            src: "/home/user/swarm-learning/workspace/mnist-pyt/user2/data-and-scratch"
-#            mType : BIND
-#        slenvvars : null
-#        usrenvvars : null
-#        usrcontaineropts : 
-#            - gpus : "all"
 
-#    - slnodedef :
-#        idx : 1
-#        identity :
-#            - attribute :
-#                aType : KEY
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-pyt/cert/sl-1-key.pem"
-#                tgt : "/swarm-cert/sl-2-key.pem"
-#                subPath : null
-#            - attribute :
-#                aType : CERT
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-pyt/cert/sl-1-cert.pem"
-#                tgt : "/swarm-cert/sl-2-cert.pem"
-#                subPath : null
-#            - attribute :
-#                aType : CAPATH
-#                mType : BIND
-#                src : "/home/user/swarm-learning/workspace/mnist-pyt/cert/ca/capath"
-#                tgt : "/swarm-cert/capath"
-#                subPath : null
-#        slhostname : sl2
-#        slhostip   : 10.60.3.51
-#        slport : 17000
-#        usrhostname : user2
-#        privatedata :
-#            src: "/home/user/swarm-learning/workspace/mnist-pyt/user2/data-and-scratch"
-#            mType : BIND
-#        slenvvars : null
-#        usrenvvars : null
-#        usrcontaineropts : 
-#            - gpus : "device=<GPU UUID>"
+
+

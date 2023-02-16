@@ -2,3 +2,5 @@ host_data
 *.pth
 *.tar
 *.pyc
+*.pem
+*.srl
