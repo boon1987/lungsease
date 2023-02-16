@@ -1,0 +1,18 @@
+######################################################################
+# (C)Copyright 2021,2022 Hewlett Packard Enterprise Development LP
+######################################################################
+Name: run_pytorch_image
+TaskType: RUN_SWARM
+Author: HPESwarm
+Prereq: build_pytorch_image # pre-requisite task name
+Outcome: run_pytorch_image
+Body:
+    Command: model/main.py
+    Entrypoint: python3
+    WorkingDir: /tmp/test
+    Envvars: ["DATA_DIR": train_data1/LungDiseaseDataset, "OUTPUT_DIR": output, "MODEL_DIR": model, "MAX_EPOCHS": 2, "MIN_PEERS": 2]
+    PrivateContent: /tmp/test/host_data
+    SharedContent:
+    -   Src: /home/user/swarm-learning/workspace_lung_disease/model
+        Tgt: /tmp/test/model
+        MType: BIND

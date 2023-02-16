@@ -1,0 +1,19 @@
+######################################################################
+# (C)Copyright 2021,2022 Hewlett Packard Enterprise Development LP
+######################################################################
+Name: build_pytorch_image
+TaskType: MAKE_USER_CONTAINER
+Author: HPESwarm
+Prereq: ROOTTASK
+Outcome: pytorch_image
+Body:
+    BuildContext: sl-cli-lib
+    BuildType: INLINE
+    BuildSteps:
+    - FROM boon1987/pytorch_lung_disease:v1
+    - RUN pip install --upgrade pip
+    - RUN pip install libauc
+    - RUN mkdir -p /tmp/hpe-swarmcli-pkg
+    - COPY swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl  /tmp/hpe-swarmcli-pkg/swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl
+    - RUN pip install /tmp/hpe-swarmcli-pkg/swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl
+
