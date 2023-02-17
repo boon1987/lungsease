@@ -235,7 +235,7 @@ def training(seed=123):
                     val_auc_mean =  roc_auc_score(test_true, test_pred, average="macro") 
                     val_auc_mean_micro =  roc_auc_score(test_true, test_pred, average="micro") 
                     val_auc_class =  roc_auc_score(test_true, test_pred, average=None) 
-                    model_wrapper.model.train()
+                model_wrapper.model.train()
                 val_metrics['val_auc_mean'].append([float(val_auc_mean)])
                 val_metrics['val_auc_mean_micro'].append([float(val_auc_mean_micro)])
                 val_metrics['val_auc_class'].append(val_auc_class)
