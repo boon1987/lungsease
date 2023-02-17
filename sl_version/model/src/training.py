@@ -12,7 +12,7 @@ from libauc.optimizers import PESG, Adam
 from sklearn.metrics import roc_auc_score
 
 from .dataloader_robust import CheXpert
-from .model_densenet121 import Custom_Densenet121
+from .custom_densenet121 import Custom_Densenet121
 from .custom_losses import Custom_MultiLabel_AlphaBalanced_FocalLoss, calculate_multilabel_binary_class_weight
 
 print(torch.__version__)
@@ -58,6 +58,14 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
 
 
 def training(seed=123):
+
+    dataDir = os.getenv('DATA_DIR', '/platform/data')
+    outputDir = os.getenv('OUTPUT_DIR', '/platform/scratch')
+    modelDir = os.getenv('MODEL_DIR', '/platform/model')
+    max_epochs = int(os.getenv('MAX_EPOCHS', str(2)))
+    min_peers = int(os.getenv('MIN_PEERS', str(2)))
+    print(dataDir, outputDir, modelDir, max_epochs, min_peers)
+
     print("Start the training process.")
 
     # Choose GPU if available (this code is placeholder for now.)
@@ -68,15 +76,16 @@ def training(seed=123):
 
     # Enable/disable reproducibility and some library optimization options
     print(os.environ)
-    set_all_seeds(seed, deterministic=True, benchmark=True)
-    set_computation_precision(matmul32=False, cudnn32=True)
+    set_all_seeds(seed, deterministic=True, benchmark=False)
+    set_computation_precision(matmul32=True, cudnn32=True)
 
     # General Training Parameters
-    model_checkpoint_dir = './model_checkpoint'
+    model_checkpoint_dir = os.path.join(outputDir, 'model_checkpoint')
+    os.makedirs(model_checkpoint_dir, exist_ok=True)
     amp_mode = False
 
     # Parameters for Custom Multilabel Focal Cost Function
-    batch_size = 64
+    batch_size = 32
     lr = 0.001                     # using smaller learning rate is better
     weight_decay = 1e-5
     #alpha = []                    # a list of imbalance ratio. To mitigate the imbalance data for each binary class (number positive samples divided by number negative samples)
@@ -95,10 +104,11 @@ def training(seed=123):
 
     # Create dataloader
     print('Create dataloader ...')
-    data_root = '/home/boon1987/Desktop/temp/lung_disease/LungDiseaseDataset/CheXpert-v1.0-small/'
+    data_root = os.path.join(dataDir, 'CheXpert-v1.0-small' )
+    print(data_root)
     train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
-    traindSet   = CheXpert(csv_path=data_root+'train.csv', image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
-    testSet     =  CheXpert(csv_path=data_root+'valid.csv',  image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
+    traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
+    testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
     trainloader =  torch.utils.data.DataLoader(traindSet, batch_size=batch_size, num_workers=2, drop_last=True, shuffle=True)
     testloader  =  torch.utils.data.DataLoader(testSet, batch_size=batch_size, num_workers=2, drop_last=False, shuffle=False)
     print('Create dataloader done.')
@@ -106,7 +116,9 @@ def training(seed=123):
 
     # Create model
     print('Create model ...')
-    model_wrapper = Custom_Densenet121()
+    online_pretrained_weight_store_path = os.path.join(outputDir, 'pretrained_dir')
+    os.makedirs(online_pretrained_weight_store_path, exist_ok=True)
+    model_wrapper = Custom_Densenet121(pretrained=False, online_pretrained_weight_store_path=online_pretrained_weight_store_path)
     model_wrapper.model.cuda()
     print('Create model done.')
     print()
@@ -131,6 +143,14 @@ def training(seed=123):
     else:
         optimizer = Adam(model_wrapper.model, lr=lr, weight_decay=weight_decay)
 
+
+    # Create Swarm callback
+    swarmCallback = None
+    swarmCallback = SwarmCallback(syncFrequency=100,
+                                  minPeers=2,
+                                  useAdaptiveSync=False,
+                                  model=model_wrapper.model)
+
     print()
     print("#################################################################################################################")
     print("#################################################################################################################")
@@ -154,6 +174,7 @@ def training(seed=123):
     best_val_auc = 0 
     train_metrics = {'loss': []}
     val_metrics = {'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
+    swarmCallback.on_train_begin()              # initalize swarmCallback and do first sync 
     for epoch in range(5):
         if epoch > 0:
             if isinstance(optimizer, PESG) == True:
@@ -181,6 +202,10 @@ def training(seed=123):
                 optimizer.step()
                 optimizer.zero_grad()   
             train_metrics['loss'].append(float(loss))
+
+            # Swarm Learning Interface
+            if swarmCallback is not None:
+                swarmCallback.on_batch_end()  
 
             # validation
             if idx % 200 == 0:
@@ -236,3 +261,8 @@ def training(seed=123):
                         
                 print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
                 print('Val_AUC_Class={} for classes {}'.format(val_auc_class, traindSet.select_cols))
+
+        swarmCallback.on_epoch_end(epoch)
+    
+    # handles what to do when training ends        
+    swarmCallback.on_train_end()

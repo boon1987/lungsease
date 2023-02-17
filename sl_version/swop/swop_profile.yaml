@@ -51,7 +51,7 @@ nodes :
         slhostname : sl1
         slhostip   : 10.60.3.51
         slport : 16000
-        usrhostname : user1
+        usrhostname : user
         privatedata :
             src: "/home/user/swarm-learning/workspace_lung_disease/sl_version/host_data"
             mType : BIND
@@ -59,6 +59,7 @@ nodes :
         usrenvvars : null
         usrcontaineropts : 
             - gpus : "all"
+            - shm-size : "32G" 
 
 
 

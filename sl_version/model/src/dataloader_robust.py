@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch 
 from torch.utils.data import Dataset
@@ -93,7 +94,7 @@ class CheXpert(Dataset):
         self.class_index = class_index
         self.image_size = image_size
         
-        self._images_list =  [image_root_path+path for path in self.df['Path'].tolist()]
+        self._images_list =  [os.path.join(image_root_path, path) for path in self.df['Path'].tolist()]
         if class_index != -1:
             self._labels_list = self.df[train_cols].values[:, class_index].tolist()
         else:
@@ -149,7 +150,6 @@ class CheXpert(Dataset):
         return self._num_images
     
     def __getitem__(self, idx):
-
         image = cv2.imread(self._images_list[idx], 0)
         image = Image.fromarray(image)
         if self.mode == 'train':

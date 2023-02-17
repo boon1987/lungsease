@@ -2,4 +2,7 @@
 from src.training import training
 
 if __name__ == "__main__":
-    training()
+   #print('Debug Message')
+   # while(1):
+   #    pass
+   training()
