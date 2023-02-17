@@ -1,6 +1,7 @@
 import numpy as np
 import os, time
 from pathlib import Path
+from swarmlearning.pyt import SwarmCallback
 
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -235,6 +236,3 @@ def training(seed=123):
                         
                 print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
                 print('Val_AUC_Class={} for classes {}'.format(val_auc_class, traindSet.select_cols))
-
-
- 
