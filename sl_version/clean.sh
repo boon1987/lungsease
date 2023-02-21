@@ -1,4 +1,5 @@
 #! /bin/bash 
 
 ../../scripts/bin/stop-swarm
-docker container prune
+
+docker container prune -f

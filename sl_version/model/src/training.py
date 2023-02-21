@@ -2,6 +2,8 @@ import numpy as np
 import os, time
 from pathlib import Path
 from swarmlearning.pyt import SwarmCallback
+from .custom_swarmcallback import Custom_SwarmCallback
+
 
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -145,7 +147,7 @@ def training(seed=123):
 
 
     # Create Swarm callback
-    swarmCallback = SwarmCallback(syncFrequency=100,
+    swarmCallback = Custom_SwarmCallback(syncFrequency=100,
                                   minPeers=2,
                                   useAdaptiveSync=False,
                                   model=model_wrapper.model)
