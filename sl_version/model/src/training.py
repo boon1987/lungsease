@@ -145,7 +145,6 @@ def training(seed=123):
 
 
     # Create Swarm callback
-    swarmCallback = None
     swarmCallback = SwarmCallback(syncFrequency=100,
                                   minPeers=2,
                                   useAdaptiveSync=False,

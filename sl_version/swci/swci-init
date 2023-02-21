@@ -16,8 +16,8 @@ cd /platform/swarm/usr
 
 # Create and finalize build task
 EXIT ON FAILURE
-#create task from taskdefs/build_pytorch_image.yaml
-#finalize task build_pytorch_image
+create task from taskdefs/build_pytorch_image.yaml
+finalize task build_pytorch_image
 get task info build_pytorch_image
 get task body build_pytorch_image
 list tasks
@@ -34,8 +34,8 @@ EXIT ON FAILURE OFF
 
 # Create and finalize swarm run task
 EXIT ON FAILURE
-#create task from taskdefs/run_pytorch_image.yaml
-#finalize task run_pytorch_image
+create task from taskdefs/run_pytorch_image.yaml
+finalize task run_pytorch_image
 get task info run_pytorch_image
 get task body run_pytorch_image
 list tasks

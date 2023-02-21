@@ -1,0 +1,66 @@
+---
+######################################################################
+# (C)Copyright 2021,2022 Hewlett Packard Enterprise Development LP
+######################################################################
+groupname  : demo
+taskrunner : defaulttaskbb.taskdb.sml.hpe
+policyuri  : ~
+resourcemgr :
+    mgrtype    : DOCKER
+    accessinfo :
+        accesstype : FROMENV
+network    : host-2-net
+apls :
+    locator :
+        host : 10.60.3.50
+        port : ~
+apisrv :
+    locator :
+        host : 10.60.3.52
+        port : ~
+envvars :
+    - SL_LOG_LEVEL : INFO
+    - http_proxy : ~
+    - https_proxy : ~
+    - no_proxy : ~
+    - HTTP_PROXY : ~
+    - HTTPS_PROXY : ~
+    - NO_PROXY : ~
+nodes :
+    - slnodedef :
+        idx : 0
+        identity :
+            - attribute :
+                aType : KEY
+                mType : BIND
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/sl-2-key.pem"
+                tgt : "/swarm-cert/sl-2-key.pem"
+                subPath : null
+            - attribute :
+                aType : CERT
+                mType : BIND
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/sl-2-cert.pem"
+                tgt : "/swarm-cert/sl-2-cert.pem"
+                subPath : null
+            - attribute :
+                aType : CAPATH
+                mType : BIND
+                src : "/home/user/swarm-learning/workspace_lung_disease/sl_version/lung-pyt-cert/cert/ca/capath"
+                tgt : "/swarm-cert/capath"
+                subPath : null
+        slhostname : sl2
+        slhostip   : 10.60.3.52
+        slport : 18000
+        usrhostname : root
+        privatedata :
+            src: "/home/user/swarm-learning/workspace_lung_disease/sl_version/host_data"
+            mType : BIND
+        slenvvars : null
+        usrenvvars : null
+        usrcontaineropts : 
+            - gpus : "all"
+            - shm-size : "32G" 
+
+
+
+
