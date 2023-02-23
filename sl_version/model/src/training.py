@@ -1,7 +1,8 @@
 import numpy as np
-import os, time
+import os, time, copy
 from pathlib import Path
-from swarmlearning.pyt import SwarmCallback
+
+#from swarmlearning.pyt import SwarmCallback
 from .custom_swarmcallback import Custom_SwarmCallback
 
 
@@ -59,7 +60,11 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
         torch.save(state, filename1)
 
 
-def training(seed=123):
+def training(seed=123, data_shuffle_seed=456):
+
+    seed = 101112
+    data_shuffle_seed = 101112
+    read_sl_data_status = True
 
     dataDir = os.getenv('DATA_DIR', '/platform/data')
     outputDir = os.getenv('OUTPUT_DIR', '/platform/scratch')
@@ -76,15 +81,19 @@ def training(seed=123):
     else:
         device_type = 'cpu'
 
+    # Enable AMP or not
+    amp_mode = False
+
     # Enable/disable reproducibility and some library optimization options
     print(os.environ)
-    set_all_seeds(seed, deterministic=True, benchmark=False)
+    set_all_seeds(seed=seed, deterministic=True, benchmark=False)
     set_computation_precision(matmul32=True, cudnn32=True)
 
-    # General Training Parameters
+    # Specifying paths for saving checkpoints
     model_checkpoint_dir = os.path.join(outputDir, 'model_checkpoint')
     os.makedirs(model_checkpoint_dir, exist_ok=True)
-    amp_mode = False
+    debug_directory = os.path.join(outputDir, 'debug_dir')
+    os.makedirs(debug_directory, exist_ok=True)
 
     # Parameters for Custom Multilabel Focal Cost Function
     batch_size = 32
@@ -106,11 +115,13 @@ def training(seed=123):
 
     # Create dataloader
     print('Create dataloader ...')
-    data_root = os.path.join(dataDir, 'CheXpert-v1.0-small' )
+    data_root = os.path.join(dataDir, 'CheXpert-v1.0-small')
+    sl_data_path = os.path.join(data_root, 'train_sl.csv')
     print(data_root)
+    print(sl_data_path)
     train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
-    traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
-    testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
+    traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='train', class_index=-1, shuffle=True, seed=data_shuffle_seed, read_sl_data_status=read_sl_data_status, read_sl_data_path=sl_data_path)
+    testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='valid', class_index=-1)
     trainloader =  torch.utils.data.DataLoader(traindSet, batch_size=batch_size, num_workers=2, drop_last=True, shuffle=True)
     testloader  =  torch.utils.data.DataLoader(testSet, batch_size=batch_size, num_workers=2, drop_last=False, shuffle=False)
     print('Create dataloader done.')
@@ -120,7 +131,7 @@ def training(seed=123):
     print('Create model ...')
     online_pretrained_weight_store_path = os.path.join(outputDir, 'pretrained_dir')
     os.makedirs(online_pretrained_weight_store_path, exist_ok=True)
-    model_wrapper = Custom_Densenet121(pretrained=False, online_pretrained_weight_store_path=online_pretrained_weight_store_path)
+    model_wrapper = Custom_Densenet121(pretrained=True, online_pretrained_weight_store_path=online_pretrained_weight_store_path)
     model_wrapper.model.cuda()
     print('Create model done.')
     print()
@@ -145,12 +156,11 @@ def training(seed=123):
     else:
         optimizer = Adam(model_wrapper.model, lr=lr, weight_decay=weight_decay)
 
-
     # Create Swarm callback
     swarmCallback = Custom_SwarmCallback(syncFrequency=100,
-                                  minPeers=2,
-                                  useAdaptiveSync=False,
-                                  model=model_wrapper.model)
+                                        minPeers=2,
+                                        useAdaptiveSync=False,
+                                        model=model_wrapper.model)
 
     print()
     print("#################################################################################################################")
@@ -174,13 +184,15 @@ def training(seed=123):
     current_time = time.time()
     best_val_auc = 0 
     train_metrics = {'loss': []}
-    val_metrics = {'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
+    val_metrics = {'time': [],'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
     swarmCallback.on_train_begin()              # initalize swarmCallback and do first sync 
-    for epoch in range(5):
+    sl_sync_status = 0
+    for epoch in range(3):
         if epoch > 0:
             if isinstance(optimizer, PESG) == True:
                 optimizer.update_regularizer(decay_factor=10)       
         for idx, data in enumerate(trainloader):
+            sl_sync_status = 0
             train_data, train_labels = data
             train_data, train_labels  = train_data.cuda(), train_labels.cuda()
             
@@ -204,12 +216,30 @@ def training(seed=123):
                 optimizer.zero_grad()   
             train_metrics['loss'].append(float(loss))
 
-            # Swarm Learning Interface
+            # Updaste Swarm Learning Batch Count
             if swarmCallback is not None:
+                # saving_state_before_sync = {'epoch': epoch,
+                #                             'idx': idx,
+                #                             'saving_time': time.time(),
+                #                             'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
+                #                             'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
                 swarmCallback.on_batch_end()  
+                if hasattr(swarmCallback, 'sync_done'):
+                    sl_sync_status = swarmCallback.sync_done
+                    # if sl_sync_status == 1:
+                    #     saving_state_after_sync = { 'epoch': epoch,
+                    #                                 'idx': idx,
+                    #                                 'saving_time': time.time(),
+                    #                                 'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
+                    #                                 'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
+                    #     checkpoint_name = "checkpoint_before_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    #     torch.save(saving_state_before_sync, os.path.join(debug_directory, checkpoint_name))
+                    #     checkpoint_name = "checkpoint_after_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    #     torch.save(saving_state_after_sync, os.path.join(debug_directory, checkpoint_name))
+
 
             # validation
-            if idx % 200 == 0:
+            if idx % 400 == 0:
                 # Evaluate training speed
                 if idx != 0:
                     previous_time = current_time
@@ -237,6 +267,7 @@ def training(seed=123):
                     val_auc_mean_micro =  roc_auc_score(test_true, test_pred, average="micro") 
                     val_auc_class =  roc_auc_score(test_true, test_pred, average=None) 
                 model_wrapper.model.train()
+                val_metrics['time'].append([str(time.time())])
                 val_metrics['val_auc_mean'].append([float(val_auc_mean)])
                 val_metrics['val_auc_mean_micro'].append([float(val_auc_mean_micro)])
                 val_metrics['val_auc_class'].append(val_auc_class)
@@ -245,6 +276,8 @@ def training(seed=123):
                 # Save model parameters
                 saving_state = {'epoch': epoch,
                                 'idx': idx,
+                                'time': time.time(), 
+                                'swarm_learning_sync': sl_sync_status,
                                 'model_state_dict': model_wrapper.model.state_dict(),
                                 'optimizer_state_dict': optimizer.state_dict(),
                                 'loss': loss,
@@ -259,9 +292,10 @@ def training(seed=123):
                 else:
                     checkpoint_name = "checkpoint"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
                     save_checkpoint(state=saving_state, is_best=False, retain_checkpoint_count=5, output_dir=model_checkpoint_dir, filename=checkpoint_name)
-                        
+                
                 print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
                 print('Val_AUC_Class={} for classes {}'.format(val_auc_class, traindSet.select_cols))
+                print('Swarm Learning Merging Status: ', sl_sync_status)
 
         swarmCallback.on_epoch_end(epoch)
     

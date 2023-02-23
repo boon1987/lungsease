@@ -31,7 +31,9 @@ class CheXpert(Dataset):
                  verbose=True,
                  upsampling_cols=['Cardiomegaly', 'Consolidation'],
                  train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion'],
-                 mode='train'):
+                 mode='train',
+                 read_sl_data_status=False,
+                 read_sl_data_path=None):
         
 
         # load data from csv
@@ -75,6 +77,9 @@ class CheXpert(Dataset):
             np.random.shuffle(data_index)
             self.df = self.df.iloc[data_index]
         
+        # Load the swarm learning csv files here
+        if read_sl_data_status == True:
+            self.df = pd.read_csv(read_sl_data_path)
         
         assert class_index in [-1, 0, 1, 2, 3, 4], 'Out of selection!'
         assert image_root_path != '', 'You need to pass the correct location for the dataset!'

@@ -11,27 +11,14 @@
 
 from __future__ import print_function
 import torch, time
-from swarmlearning.client.swarm import SwarmCallbackBase, SLPlatforms
+from swarmlearning.pyt import SwarmCallback
 
 # Default Training contract used for learning if not specified by user. 
 # Any update to default contract needs similar modifications 
 # in all applicable ML platforms (TF, PYT, etc)
 DEFAULT_TRAINING_CONTRACT = 'defaultbb.cqdb.sml.hpe'
 
-class Custom_SwarmCallback(SwarmCallbackBase):
-    '''
-    This is the customized callback class sub-classed from 
-    SwarmCallbackBase class that implements different swarm 
-    functionalities. It implements the methods like 
-    on_train_begin, on_batch_end etc and calls different 
-    methods of SwarmCallbackBase.
-    '''
-
-    # Creating Pytorch context
-    # Put all artifacts needed to interface with ML platform here
-    class pyTorchContext:
-        def __init__(self, model):
-            self.model = model
+class Custom_SwarmCallback(SwarmCallback):
 
 
     def __init__(self, syncFrequency, minPeers, trainingContract=DEFAULT_TRAINING_CONTRACT, **kwargs):
@@ -69,23 +56,8 @@ class Custom_SwarmCallback(SwarmCallbackBase):
                        swCallback = SwarmCallback(syncFrequency=128, minPeers=3)
                        swCallback.logger.setLevel(logging.DEBUG)
         '''
-        SwarmCallbackBase.__init__(self, syncFrequency, minPeers, trainingContract, kwargs)        
-        self._verifyAndSetPlatformContext(kwargs)
-        self._swarmInitialize()
-
-    
-    def on_train_begin(self):
-        '''
-        Pytorch specific on_train_begin implementation
-        '''
-        self._swarmOnTrainBegin()
-    
-
-    def on_batch_end(self, batch=None):
-        '''
-        Pytorch specific on_batch_end implementation
-        '''
-        self._swarmOnBatchEnd()
+        super().__init__(syncFrequency, minPeers, trainingContract, **kwargs)  
+        self.sync_done = 0
 
     def _swarmOnBatchEnd(self):
         '''
@@ -93,6 +65,8 @@ class Custom_SwarmCallback(SwarmCallbackBase):
         Should be called to execute swarm functionality at the end
         of each batch of local training
         '''
+
+        self.sync_done = 0
         # If loopback just return
         if self.loopback:
             self.logger.debug("OnBatchEnd: Bypassing Swarm Learning functionality as SWARM_LOOPBACK is True")
@@ -100,131 +74,10 @@ class Custom_SwarmCallback(SwarmCallbackBase):
         if self.stepsBeforeNextSync == 0 and not self.isSwarmTrainingOver:
             self.logger.debug("="*20 + " swarmOnBatchEnd : START " + "="*20)   
             s = time.time()         
-            self.__doSync()
+            self._SwarmCallbackBase__doSync()
             e = time.time()
-            print("Required time to perform swarm weight merging in second: ", e-s)
+            self.logger.info("Required time to perform swarm weight merging in {} seconds: ".format(e-s))
             self.userMergeDone = True
             self.logger.debug("="*20 + " swarmOnBatchEnd : END " + "="*20)
+            self.sync_done = 1
         self.stepsBeforeNextSync -= 1
-
-
-    def on_epoch_end(self, epoch=None):
-        '''
-        Pytorch specific on_epoch_end implementation
-        '''
-        self._swarmOnEpochEnd()
-
-    
-    def on_train_end(self):
-        '''
-        Pytorch specific on_train_end implementation
-        '''
-        self._swarmOnTrainEnd()
-
-
-    def _verifyAndSetPlatformContext(self, params):
-        '''
-        Pytorch specific implementation of abstract method
-        _verifyAndSetPlatform in SwarmCallbackBase class.
-        It is the verification and initialization code specific 
-        to Pytorch.
-        '''
-        ml_platform = params.get('ml_platform', SLPlatforms.PYTORCH.name)
-        if ml_platform not in [SLPlatforms.PYTORCH.name]:
-            self._logAndRaiseError("Invalid ml platform type: %s" % (ml_platform))
-        self.mlPlatform = SLPlatforms[ml_platform]
-        self.model = params.get('model', None)
-        if self.model is None:
-            self._logAndRaiseError("Pytorch model is None")
-        else:
-            self.__setMLContext(pytorchModel=self.model)
-
-
-    def _getValidationDataForAdaptiveSync(self, valData, valBatchSize):
-        '''
-        Pytorch specific implementation of abstract method
-        _getValidationDataForAdaptiveSync in SwarmCallbackBase class.
-        Currently swarm does not support this for Pytorch.
-        '''
-        self._logAndRaiseError("Adaptive sync for Pytorch is not supported")
-
-
-    def _saveModelWeightsToDict(self):
-        '''
-        Pytorch specific implementation of abstract method
-        _saveModelWeightsToDict in SwarmCallbackBase class.
-        Saves the model passed to it inside its context, along with 
-        the list of key weightNames of model's weights.
-        This is later used in the loadModel function for loading the 
-        updated set of weights as a flat dictionary
-        '''
-        inDict = {}
-        self.weightNames = []
-        model = self.mlCtx.model
-        # in pytorch model weights are stored in a orderedDict 
-        # hence we dont need to ensure ordering, it should work as is.
-        for wTensor in model.state_dict():
-            # Hoewever weights are Tensors , we have change it to numpy types
-            # wTensor is a str so we can use it as is.
-            if (model.state_dict()[wTensor].is_cuda):
-                #TypeError: can't convert cuda:0 device type tensor to numpy. 
-                #Use Tensor.cpu() to copy the tensor to host memory first.
-                inDict[wTensor] = model.state_dict()[wTensor].cpu().numpy()
-            else:
-                inDict[wTensor] = model.state_dict()[wTensor].numpy()
-
-            self.weightNames.append(wTensor)
-        return inDict
-
-
-    def _loadModelWeightsFromDict(self, inDict):
-        '''
-        Pytorch specific implementation of abstract method
-        _loadModelWeightsFromDict in SwarmCallbackBase class.
-        This function in tightly intertwined with saveModelWeightstoDict 
-        function, updating the same model that was passed to the last call 
-        of the save model function. Hence please use carefully
-        :param inDict: The flat model weights' dictionary to be loaded in the model
-        :return: Nothing is returned, the saved model is updated in-place
-        '''
-        # HPESL-141 # SL : PYT: fails to handle dim-0 (scalar , layers) 
-        # https://pytorch.org/tutorials/beginner/saving_loading_models.html
-        # Partially loading a model or loading a partial model are common scenarios 
-        # when transfer learning or training a new complex model. 
-        # Leveraging trained parameters, even if only a few are usable, 
-        # will help to warmstart the training process and hopefully help your model 
-        # converge much faster than training from scratch.
-        # Whether you are loading from a partial state_dict, which is missing some keys, 
-        # or loading a state_dict with more keys than the model that you are loading into, 
-        # you can set the strict argument to False in the load_state_dict() function 
-        # to ignore non-matching keys.
-
-        model = self.mlCtx.model
-        tempDict = {}
-        for k in self.weightNames:
-            tempDict[k] = torch.Tensor(inDict[k])
-        model.load_state_dict(tempDict, strict=False)
-
-
-        # IMP NOTE: model.train() or mode.eval or model.no_grads() 
-        # needs to be called by the caller, to ensure weights are 
-        # useful otherwise dropout, BatchNormalization may not work
-        # as expected.
-        # https://stackoverflow.com/questions/52945427/pytorch-manually-setting-weight-parameters-with-numpy-array-for-gru-lstm
-        # https://stackoverflow.com/questions/60018578/what-does-model-eval-do-in-pytorch
-        # use model.training to check status
-
-
-    def _calculateLocalLoss(self):
-        '''
-        Pytorch specific implementation of abstract method
-        _calculateLocalLoss in SwarmCallbackBase class.
-        '''
-        # TBD : To be implemented later
-        return 0
-
-
-    def __setMLContext(self, **params):
-        ctx = SwarmCallback.pyTorchContext(params['pytorchModel'])
-        self.logger.debug("Initialized PyTorch context for Swarm")
-        self.mlCtx = ctx

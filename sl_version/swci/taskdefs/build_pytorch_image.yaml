@@ -12,7 +12,7 @@ Body:
     BuildSteps:
     - FROM boon1987/pytorch_lung_disease:v1
     - RUN pip install --upgrade pip
-    - RUN pip install libauc
+    - RUN pip install libauc==1.2.0
     - RUN mkdir -p /tmp/hpe-swarmcli-pkg
     - COPY swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl  /tmp/hpe-swarmcli-pkg/swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl
     - RUN pip install /tmp/hpe-swarmcli-pkg/swarmlearning-client-py3-none-manylinux_2_24_x86_64.whl
