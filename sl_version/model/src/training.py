@@ -60,11 +60,13 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
         torch.save(state, filename1)
 
 
-def training(seed=123, data_shuffle_seed=456):
+def training(seed=123, data_shuffle_seed=456, host_index=1):
 
-    seed = 101112
-    data_shuffle_seed = 101112
+    seed = 123
+    data_shuffle_seed = 123
     read_sl_data_status = True
+    host_index = 1
+    checkinModelOnTrainEnd='snapshot'
 
     dataDir = os.getenv('DATA_DIR', '/platform/data')
     outputDir = os.getenv('OUTPUT_DIR', '/platform/scratch')
@@ -116,7 +118,7 @@ def training(seed=123, data_shuffle_seed=456):
     # Create dataloader
     print('Create dataloader ...')
     data_root = os.path.join(dataDir, 'CheXpert-v1.0-small')
-    sl_data_path = os.path.join(data_root, 'train_sl.csv')
+    sl_data_path = os.path.join(data_root, 'train_sl1.csv') if host_index == 1 else os.path.join(data_root, 'train_sl2.csv')
     print(data_root)
     print(sl_data_path)
     train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
@@ -158,9 +160,10 @@ def training(seed=123, data_shuffle_seed=456):
 
     # Create Swarm callback
     swarmCallback = Custom_SwarmCallback(syncFrequency=100,
-                                        minPeers=2,
-                                        useAdaptiveSync=False,
-                                        model=model_wrapper.model)
+                                         minPeers=2,
+                                         useAdaptiveSync=False,
+                                         model=model_wrapper.model,
+                                         checkinModelOnTrainEnd=checkinModelOnTrainEnd)
 
     print()
     print("#################################################################################################################")
@@ -187,7 +190,7 @@ def training(seed=123, data_shuffle_seed=456):
     val_metrics = {'time': [],'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
     swarmCallback.on_train_begin()              # initalize swarmCallback and do first sync 
     sl_sync_status = 0
-    for epoch in range(3):
+    for epoch in range(5):
         if epoch > 0:
             if isinstance(optimizer, PESG) == True:
                 optimizer.update_regularizer(decay_factor=10)       
@@ -215,28 +218,6 @@ def training(seed=123, data_shuffle_seed=456):
                 optimizer.step()
                 optimizer.zero_grad()   
             train_metrics['loss'].append(float(loss))
-
-            # Updaste Swarm Learning Batch Count
-            if swarmCallback is not None:
-                # saving_state_before_sync = {'epoch': epoch,
-                #                             'idx': idx,
-                #                             'saving_time': time.time(),
-                #                             'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
-                #                             'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
-                swarmCallback.on_batch_end()  
-                if hasattr(swarmCallback, 'sync_done'):
-                    sl_sync_status = swarmCallback.sync_done
-                    # if sl_sync_status == 1:
-                    #     saving_state_after_sync = { 'epoch': epoch,
-                    #                                 'idx': idx,
-                    #                                 'saving_time': time.time(),
-                    #                                 'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
-                    #                                 'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
-                    #     checkpoint_name = "checkpoint_before_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
-                    #     torch.save(saving_state_before_sync, os.path.join(debug_directory, checkpoint_name))
-                    #     checkpoint_name = "checkpoint_after_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
-                    #     torch.save(saving_state_after_sync, os.path.join(debug_directory, checkpoint_name))
-
 
             # validation
             if idx % 400 == 0:
@@ -297,7 +278,42 @@ def training(seed=123, data_shuffle_seed=456):
                 print('Val_AUC_Class={} for classes {}'.format(val_auc_class, traindSet.select_cols))
                 print('Swarm Learning Merging Status: ', sl_sync_status)
 
+            # Updaste Swarm Learning Batch Count
+            if swarmCallback is not None:
+                # saving_state_before_sync = {'epoch': epoch,
+                #                             'idx': idx,
+                #                             'saving_time': time.time(),
+                #                             'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
+                #                             'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
+                swarmCallback.on_batch_end()  
+                if hasattr(swarmCallback, 'sync_done'):
+                    sl_sync_status = swarmCallback.sync_done
+                    # if sl_sync_status == 1:
+                    #     saving_state_after_sync = { 'epoch': epoch,
+                    #                                 'idx': idx,
+                    #                                 'saving_time': time.time(),
+                    #                                 'model_state_dict': copy.deepcopy(model_wrapper.model.state_dict()),
+                    #                                 'optimizer_state_dict': copy.deepcopy(optimizer.state_dict())}
+                    #     checkpoint_name = "checkpoint_before_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    #     torch.save(saving_state_before_sync, os.path.join(debug_directory, checkpoint_name))
+                    #     checkpoint_name = "checkpoint_after_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    #     torch.save(saving_state_after_sync, os.path.join(debug_directory, checkpoint_name))
+
         swarmCallback.on_epoch_end(epoch)
     
     # handles what to do when training ends        
     swarmCallback.on_train_end()
+
+    # Save final model parameters for swarm learning
+    if read_sl_data_status:
+        saving_state = {'epoch': epoch,
+                        'idx': idx,
+                        'time': time.time(), 
+                        'model_state_dict': model_wrapper.model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'loss': loss,
+                        'train_metrics': train_metrics,
+                        'val_metrics': val_metrics,
+                        'class_info': traindSet.select_cols}
+        filename1 = os.path.join(model_checkpoint_dir, checkinModelOnTrainEnd+'_final_swarm_learning_model.pth.tar')
+        torch.save(saving_state, filename1)

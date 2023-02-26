@@ -76,11 +76,12 @@ class CheXpert(Dataset):
             np.random.seed(seed)
             np.random.shuffle(data_index)
             self.df = self.df.iloc[data_index]
-        
+
         # Load the swarm learning csv files here
         if read_sl_data_status == True:
             self.df = pd.read_csv(read_sl_data_path)
-        
+            self._num_images = len(self.df)
+
         assert class_index in [-1, 0, 1, 2, 3, 4], 'Out of selection!'
         assert image_root_path != '', 'You need to pass the correct location for the dataset!'
 
