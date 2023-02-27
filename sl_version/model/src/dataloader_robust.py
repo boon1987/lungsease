@@ -63,6 +63,7 @@ class CheXpert(Dataset):
                 self.df[col].fillna(0, inplace=True)
             else:
                 self.df[col].fillna(0, inplace=True)
+                self.df[col].replace(-1, 1, inplace=True)
         
         self._num_images = len(self.df)
         

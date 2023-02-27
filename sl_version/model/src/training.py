@@ -62,7 +62,7 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
 
 def training(seed=123, data_shuffle_seed=456, host_index=1):
 
-    seed = 123
+    seed = 1233
     data_shuffle_seed = 123
     read_sl_data_status = True
     host_index = 1
