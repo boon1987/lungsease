@@ -10,7 +10,7 @@ Body:
     Command: model/main.py
     Entrypoint: python3
     WorkingDir: /tmp/test
-    Envvars: ["SWARM_LOOPBACK": False, "DATA_DIR": host_data/train_data/LungDiseaseDataset, "OUTPUT_DIR": host_data/output, "MODEL_DIR": model, "MAX_EPOCHS": 2, "MIN_PEERS": 2]
+    Envvars: ["SWARM_LOOPBACK": True, "DATA_DIR": host_data/train_data/LungDiseaseDataset, "OUTPUT_DIR": host_data/output, "MODEL_DIR": model, "MAX_EPOCHS": 2, "MIN_PEERS": 2]
     PrivateContent: /tmp/test/host_data
     SharedContent:
     -   Src: /home/user/swarm-learning/workspace_lung_disease/sl_version/model

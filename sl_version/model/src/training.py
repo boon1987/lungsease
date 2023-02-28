@@ -62,9 +62,9 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
 
 def training(seed=123, data_shuffle_seed=456, host_index=1):
 
-    seed = 1233
-    data_shuffle_seed = 123
-    read_sl_data_status = True
+    seed = 456
+    data_shuffle_seed = 456
+    read_sl_data_status = False
     host_index = 1
     checkinModelOnTrainEnd='snapshot'
 
@@ -121,9 +121,10 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
     sl_data_path = os.path.join(data_root, 'train_sl1.csv') if host_index == 1 else os.path.join(data_root, 'train_sl2.csv')
     print(data_root)
     print(sl_data_path)
-    train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
-    traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='train', class_index=-1, shuffle=True, seed=data_shuffle_seed, read_sl_data_status=read_sl_data_status, read_sl_data_path=sl_data_path)
-    testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='valid', class_index=-1)
+    train_cols = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
+    #train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
+    traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='train', class_index=-1, shuffle=True, seed=data_shuffle_seed, read_sl_data_status=read_sl_data_status, read_sl_data_path=sl_data_path, train_cols=train_cols)
+    testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='valid', class_index=-1, train_cols=train_cols, verbose=False)
     trainloader =  torch.utils.data.DataLoader(traindSet, batch_size=batch_size, num_workers=2, drop_last=True, shuffle=True)
     testloader  =  torch.utils.data.DataLoader(testSet, batch_size=batch_size, num_workers=2, drop_last=False, shuffle=False)
     print('Create dataloader done.')
@@ -133,7 +134,7 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
     print('Create model ...')
     online_pretrained_weight_store_path = os.path.join(outputDir, 'pretrained_dir')
     os.makedirs(online_pretrained_weight_store_path, exist_ok=True)
-    model_wrapper = Custom_Densenet121(pretrained=True, online_pretrained_weight_store_path=online_pretrained_weight_store_path)
+    model_wrapper = Custom_Densenet121(pretrained=True,  number_classes=len(train_cols), online_pretrained_weight_store_path=online_pretrained_weight_store_path)
     model_wrapper.model.cuda()
     print('Create model done.')
     print()
@@ -244,6 +245,9 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                         test_true.append(test_labels.numpy())
                     test_true = np.concatenate(test_true)
                     test_pred = np.concatenate(test_pred)
+                    mask = test_true.sum(axis=0)<25
+                    test_true = test_true[:, ~mask]
+                    test_pred = test_pred[:,~mask]
                     val_auc_mean =  roc_auc_score(test_true, test_pred, average="macro") 
                     val_auc_mean_micro =  roc_auc_score(test_true, test_pred, average="micro") 
                     val_auc_class =  roc_auc_score(test_true, test_pred, average=None) 
@@ -264,7 +268,7 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                                 'loss': loss,
                                 'train_metrics': train_metrics,
                                 'val_metrics': val_metrics,
-                                'class_info': traindSet.select_cols}
+                                'class_info': list(np.array(traindSet.select_cols)[~mask])}
                 if best_val_auc < val_auc_mean:
                     best_val_auc = val_auc_mean
                     # torch.save(model_wrapper.model.state_dict(), 'aucm_multi_label_pretrained_model.pth')
@@ -275,7 +279,7 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                     save_checkpoint(state=saving_state, is_best=False, retain_checkpoint_count=5, output_dir=model_checkpoint_dir, filename=checkpoint_name)
                 
                 print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
-                print('Val_AUC_Class={} for classes {}'.format(val_auc_class, traindSet.select_cols))
+                print('Val_AUC_Class={} for classes {}'.format(val_auc_class, list(np.array(traindSet.select_cols)[~mask])))
                 print('Swarm Learning Merging Status: ', sl_sync_status)
 
             # Updaste Swarm Learning Batch Count
@@ -314,6 +318,6 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                         'loss': loss,
                         'train_metrics': train_metrics,
                         'val_metrics': val_metrics,
-                        'class_info': traindSet.select_cols}
+                        'class_info': list(np.array(traindSet.select_cols)[~mask])}
         filename1 = os.path.join(model_checkpoint_dir, checkinModelOnTrainEnd+'_final_swarm_learning_model.pth.tar')
         torch.save(saving_state, filename1)
