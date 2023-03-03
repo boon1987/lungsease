@@ -62,9 +62,9 @@ def save_checkpoint(state, is_best, retain_checkpoint_count, output_dir, filenam
 
 def training(seed=123, data_shuffle_seed=456, host_index=1):
 
-    seed = 456
-    data_shuffle_seed = 456
-    read_sl_data_status = False
+    seed = 789
+    data_shuffle_seed = 789
+    read_sl_data_status = True
     host_index = 1
     checkinModelOnTrainEnd='snapshot'
 
@@ -94,6 +94,8 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
     # Specifying paths for saving checkpoints
     model_checkpoint_dir = os.path.join(outputDir, 'model_checkpoint')
     os.makedirs(model_checkpoint_dir, exist_ok=True)
+    model_checkpoint_swarm_merge_dir = os.path.join(outputDir, 'model_checkpoint_swarm_merge')
+    os.makedirs(model_checkpoint_swarm_merge_dir, exist_ok=True)
     debug_directory = os.path.join(outputDir, 'debug_dir')
     os.makedirs(debug_directory, exist_ok=True)
 
@@ -121,8 +123,8 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
     sl_data_path = os.path.join(data_root, 'train_sl1.csv') if host_index == 1 else os.path.join(data_root, 'train_sl2.csv')
     print(data_root)
     print(sl_data_path)
-    train_cols = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
-    #train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
+    #train_cols = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
+    train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
     traindSet   = CheXpert(csv_path=os.path.join(data_root,'train.csv'), image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='train', class_index=-1, shuffle=True, seed=data_shuffle_seed, read_sl_data_status=read_sl_data_status, read_sl_data_path=sl_data_path, train_cols=train_cols)
     testSet     =  CheXpert(csv_path=os.path.join(data_root, 'valid.csv'),  image_root_path=data_root, use_upsampling=False, use_frontal=True, image_size=320, mode='valid', class_index=-1, train_cols=train_cols, verbose=False)
     trainloader =  torch.utils.data.DataLoader(traindSet, batch_size=batch_size, num_workers=2, drop_last=True, shuffle=True)
@@ -187,10 +189,13 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
     previous_time = None
     current_time = time.time()
     best_val_auc = 0 
+    best_val_auc_swarm = 0
     train_metrics = {'loss': []}
     val_metrics = {'time': [],'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
+    val_metrics_swarm = {'time': [],'val_auc_mean': [], 'val_auc_mean_micro':[], 'val_auc_class': [],'best_val_auc': []}
     swarmCallback.on_train_begin()              # initalize swarmCallback and do first sync 
     sl_sync_status = 0
+    swarm_iteration_counter = 0
     for epoch in range(5):
         if epoch > 0:
             if isinstance(optimizer, PESG) == True:
@@ -221,7 +226,7 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
             train_metrics['loss'].append(float(loss))
 
             # validation
-            if idx % 400 == 0:
+            if swarm_iteration_counter % 400 == 0: # It does perform the validation when swarm_iteration_counter=0
                 # Evaluate training speed
                 if idx != 0:
                     previous_time = current_time
@@ -281,6 +286,7 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                 print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
                 print('Val_AUC_Class={} for classes {}'.format(val_auc_class, list(np.array(traindSet.select_cols)[~mask])))
                 print('Swarm Learning Merging Status: ', sl_sync_status)
+                print('#######################################################################################')
 
             # Updaste Swarm Learning Batch Count
             if swarmCallback is not None:
@@ -302,7 +308,63 @@ def training(seed=123, data_shuffle_seed=456, host_index=1):
                     #     torch.save(saving_state_before_sync, os.path.join(debug_directory, checkpoint_name))
                     #     checkpoint_name = "checkpoint_after_sync"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
                     #     torch.save(saving_state_after_sync, os.path.join(debug_directory, checkpoint_name))
+            
+            if (sl_sync_status == 1) and (swarm_iteration_counter % 400 == 0): # The swarm learning perform 1 less validation count than previous section because of the condition sl_sync_status==1
 
+                # Evaluate model performance metrics
+                model_wrapper.model.eval()
+                with torch.no_grad():    
+                    test_pred = []
+                    test_true = [] 
+                    for jdx, data in enumerate(testloader):
+                        test_data, test_labels = data
+                        test_data = test_data.cuda()
+                        y_pred = model_wrapper.model(test_data)
+                        y_pred = torch.sigmoid(y_pred)
+                        test_pred.append(y_pred.cpu().detach().numpy())
+                        test_true.append(test_labels.numpy())
+                    test_true = np.concatenate(test_true)
+                    test_pred = np.concatenate(test_pred)
+                    mask = test_true.sum(axis=0)<25
+                    test_true = test_true[:, ~mask]
+                    test_pred = test_pred[:,~mask]
+                    val_auc_mean =  roc_auc_score(test_true, test_pred, average="macro") 
+                    val_auc_mean_micro =  roc_auc_score(test_true, test_pred, average="micro") 
+                    val_auc_class =  roc_auc_score(test_true, test_pred, average=None) 
+                model_wrapper.model.train()
+                val_metrics_swarm['time'].append([str(time.time())])
+                val_metrics_swarm['val_auc_mean'].append([float(val_auc_mean)])
+                val_metrics_swarm['val_auc_mean_micro'].append([float(val_auc_mean_micro)])
+                val_metrics_swarm['val_auc_class'].append(val_auc_class)
+                val_metrics_swarm['best_val_auc'].append([float(best_val_auc_swarm)])
+
+                # Save model parameters
+                saving_state = {'epoch': epoch,
+                                'idx': idx,
+                                'time': time.time(), 
+                                'swarm_learning_sync': sl_sync_status,
+                                'model_state_dict': model_wrapper.model.state_dict(),
+                                'optimizer_state_dict': optimizer.state_dict(),
+                                'loss': loss,
+                                'train_metrics': train_metrics,
+                                'val_metrics': val_metrics_swarm,
+                                'class_info': list(np.array(traindSet.select_cols)[~mask])}
+                if best_val_auc_swarm < val_auc_mean:
+                    best_val_auc_swarm = val_auc_mean
+                    # torch.save(model_wrapper.model.state_dict(), 'aucm_multi_label_pretrained_model.pth')
+                    checkpoint_name = "checkpoint"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    save_checkpoint(state=saving_state, is_best=True, retain_checkpoint_count=5, output_dir=model_checkpoint_swarm_merge_dir, filename=checkpoint_name)
+                else:
+                    checkpoint_name = "checkpoint"+"_e"+str(epoch)+"_iter"+str(idx)+".pth.tar"
+                    save_checkpoint(state=saving_state, is_best=False, retain_checkpoint_count=5, output_dir=model_checkpoint_swarm_merge_dir, filename=checkpoint_name)
+                
+                print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc_swarm))
+                print('Val_AUC_Class={} for classes {}'.format(val_auc_class, list(np.array(traindSet.select_cols)[~mask])))
+                print('Swarm Learning Merging Status: ', sl_sync_status)
+
+                print('#######################################################################################')
+                print('#######################################################################################')
+            swarm_iteration_counter = swarm_iteration_counter + 1
         swarmCallback.on_epoch_end(epoch)
     
     # handles what to do when training ends        
