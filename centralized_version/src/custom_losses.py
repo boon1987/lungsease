@@ -12,8 +12,8 @@ def calculate_multilabel_binary_class_weight(targets):
     class_weights=[]
     for i in np.arange(targets.shape[1]):
         temp_y = targets[:,i]
-        class_weights.append(list(compute_class_weight('balanced', np.array([0,1]), y=temp_y)))
-    class_weights = torch.as_tensor(np.array(class_weights).transpose())
+        class_weights.append(list(compute_class_weight('balanced', classes=np.array([0,1]), y=temp_y)))
+    class_weights = torch.as_tensor(copy.deepcopy(np.array(class_weights).transpose()))
     return class_weights
 
 
