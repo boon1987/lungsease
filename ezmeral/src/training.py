@@ -13,6 +13,7 @@ from sklearn.metrics import roc_auc_score
 from .dataloader_robust import CheXpert
 from .custom_densenet121 import Custom_Densenet121
 from .custom_losses import Custom_MultiLabel_AlphaBalanced_FocalLoss, calculate_multilabel_binary_class_weight
+from .mlflow_serving_customlogic_wrapper import LungDiseaseDiagnosisMLFlowWrapper
 
 print(torch.__version__)
 print(torch.cuda.is_available())
@@ -20,6 +21,7 @@ np.set_printoptions(precision=4)
 
 import mlflow
 from mlflow import log_metric, log_param
+    
 
 def set_all_seeds(seed, deterministic=True, benchmark=False):
     
@@ -69,9 +71,9 @@ def training(seed=123):
     read_sl_data_status = False
     amp_mode = False
     sl_data_path=None
+    train_cols = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
     outputDir = 'training_output'
     data_root = '/home/boon1987/Desktop/temp/lung_disease/lung-disease-multilabel-classification/ezmeral/LungDiseaseDataset/CheXpert-v1.0-small/'
-    train_cols = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices']
     load_local_checkpoint = '/home/boon1987/Desktop/temp/lung_disease/lung-disease-multilabel-classification/ezmeral/training_output/pretrained_dir/checkpoint_e0_iter1600.pth.tar'
     #train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
    
@@ -290,13 +292,40 @@ def training(seed=123):
                         #mlflow.pytorch.save_state_dict(saving_state)
                     #mlflow.pytorch.save_model()
                     #mlflow.pytorch.log_model(model_wrapper.model, "model")
-                    mlflow.log_artifact(os.path.join(os.getcwd(), 'main.py'))
+                    mlflow.log_artifact(os.path.join(os.getcwd(), 'train.py'))
                     mlflow.log_artifacts(os.path.join(os.getcwd(), 'src'), "src")
                     mlflow.log_artifacts(os.path.join(os.getcwd(), 'training_output/model_checkpoint'), "training_output/model_checkpoint")
 
 
                     print ('Epoch=%s, BatchID=%s, Val_AUC=%.4f, Best_Val_AUC=%.4f'%(epoch, idx, val_auc_mean, best_val_auc))
                     print('Val_AUC_Class={} for classes {}'.format(val_auc_class, list(np.array(traindSet.select_cols)[~mask])))
+                    break
 
                 step = step + 1
+        model_wrapper.model.cpu()
+        model_wrapper.model.eval()
+        with torch.no_grad():
+            print(train_data.shape)
+            # Export model with default mlflow configuration
+            model_info = mlflow.pytorch.log_model(model_wrapper.model, "model")
 
+            # Exporting the training packages for new conda_env and virtualenv creation. It can be used by Mlflow project or Mlflow model serve
+            model_info = mlflow.pytorch.log_model(model_wrapper.model, "model_with_training_conda_env", conda_env='./config/env/conda_env.yaml')
+            
+            # Export JIT scripted model
+            traced_model = torch.jit.trace(model_wrapper.model, train_data.cpu())
+            traced_model_info = mlflow.pytorch.log_model(traced_model, "traced_model")
+
+            # Export custom pytorch model with following information: 
+            #   1) preprocessing logic, 2) post-processing logic, 3) code_paths, 4) training environemnt packages (either conda or virtualenv)
+            model_info = mlflow.pyfunc.log_model(artifact_path="custom_logic_model_conda", python_model=LungDiseaseDiagnosisMLFlowWrapper(model_wrapper.model), conda_env='./config/env/conda_env.yaml', code_path=['./src'])
+            model_info = mlflow.pyfunc.log_model(artifact_path="custom_logic_model_virtualenv", python_model=LungDiseaseDiagnosisMLFlowWrapper(model_wrapper.model), code_path=['./src'], pip_requirements='./config/env/requirements.txt')
+
+        print('mlflow_model_info_uri: ', model_info.model_uri)
+        print('scripted_model_info_uri: ', traced_model_info.model_uri)
+
+        env = mlflow.pytorch.get_default_conda_env()
+        print("conda env: {}".format(env))
+
+        req = mlflow.pytorch.get_default_pip_requirements()
+        print("pip requirements: {}".format(req))

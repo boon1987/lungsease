@@ -1,0 +1,13 @@
+name: lung-disease
+
+# Use conda environment 
+conda_env: ./config/env/conda_env.yaml
+
+# Use virtual environment
+#python_env: ./config/env/python_env.yaml
+
+entry_points:
+  train:
+    command: "python /home/boon1987/Desktop/temp/lung_disease/lung-disease-multilabel-classification/ezmeral/train.py"
+
+#docker run --shm-size=32000m -it --gpus all --network boon-net --publish 8988:8888 --publish 8180:8080 --mount type=bind,source=/home/boon1987,target=/home/boon1987 pytorch/pytorch:latest bash 
