@@ -75,7 +75,7 @@ def training(seed=123):
     amp_mode = False
 
     # Parameters for Custom Multilabel Focal Cost Function
-    batch_size = 64
+    batch_size = 32
     lr = 0.001                     # using smaller learning rate is better
     weight_decay = 1e-5
     #alpha = []                    # a list of imbalance ratio. To mitigate the imbalance data for each binary class (number positive samples divided by number negative samples)

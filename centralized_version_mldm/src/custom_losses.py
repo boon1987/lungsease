@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.utils.class_weight import compute_class_weight
+import copy
 
 
 def calculate_multilabel_binary_class_weight(targets):
