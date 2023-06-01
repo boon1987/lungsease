@@ -94,7 +94,7 @@ def training(seed=123):
 
     # Create dataloader
     print('Create dataloader ...')
-    data_root = '/home/boon1987/Desktop/temp/lung_disease/LungDiseaseDataset/CheXpert-v1.0-small/'
+    data_root = './CheXpert-v1.0-small/'
     train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
     traindSet   = CheXpert(csv_path=data_root+'train.csv', image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
     testSet     =  CheXpert(csv_path=data_root+'valid.csv',  image_root_path=data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
