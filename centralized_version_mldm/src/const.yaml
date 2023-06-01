@@ -1,21 +1,17 @@
 description: Lung_PyTorch_const
 hyperparameters:
-    global_batch_size: 256
-    dense1: 128
-    data: /mnt/data #?
-    arch: resnet18
-    workers: 4
-    start-epoch: 0
-    lr: 0.1
-    momentum: 0.9
-    weight_decay: 1e-4
-    pretrained: True
+    seed: 123
+    amp_mode: False
+    batch_size: 32
+    lr: 0.001                     # using smaller learning rate is better
+    weight_decay: 1e-5
+    data_root: './CheXpert-v1.0-small/'
 records_per_epoch: 60000
 searcher:
     name: single
     metric: val_loss
     smaller_is_better: false
     max_length:
-        epochs: 10
-entrypoint: model_def:ImageNetTrial
+        epochs: 1
+entrypoint: model_def:LungDiseaseTrial
 max_restarts: 0
