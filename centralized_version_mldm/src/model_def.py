@@ -36,7 +36,7 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         # Set Hyperparameters
         self.seed = self.context.get_hparam("seed")
         self.amp_mode = self.context.get_hparam("amp_mode")
-        self.batch_size = self.context.get_hparam("batch_size")
+        self.global_batch_size = self.context.get_hparam("global_batch_size")
         self.lr = self.context.get_hparam("lr")                     # using smaller learning rate is better
         self.weight_decay = self.context.get_hparam("weight_decay")  
         self.data_root = self.context.get_hparam("data_root")

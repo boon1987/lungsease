@@ -1,17 +1,29 @@
 description: Lung_PyTorch_const
+workspace: khanghua.boon
 hyperparameters:
     seed: 123
     amp_mode: False
-    batch_size: 32
+    global_batch_size: 32
     lr: 0.001                     # using smaller learning rate is better
     weight_decay: 1e-5
-    data_root: './CheXpert-v1.0-small/'
-records_per_epoch: 60000
+    data_root: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small
+#records_per_epoch: 60000
 searcher:
     name: single
     metric: val_loss
-    smaller_is_better: false
+    smaller_is_better: true
     max_length:
         epochs: 1
+        #batches: 100
 entrypoint: model_def:LungDiseaseTrial
+resources:
+    slots_per_trial: 1
 max_restarts: 0
+
+bind_mounts: 
+  - container_path: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small 
+    host_path: /mnt/mapr_nfs/determined 
+    propagation: rprivate 
+    read_only: false 
+environment:
+  image: boon1987/mlde_lung_disease:latest
