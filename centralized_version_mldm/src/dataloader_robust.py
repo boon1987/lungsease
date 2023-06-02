@@ -35,8 +35,8 @@ class CheXpert(Dataset):
 
         # load data from csv
         self.df = pd.read_csv(csv_path)
-        self.df['Path'] = self.df['Path'].str.replace('CheXpert-v1.0-small/', '')
-        self.df['Path'] = self.df['Path'].str.replace('CheXpert-v1.0/', '')
+        self.df['Path'] = self.df['Path'].str.replace('CheXpert-v1.0-small', '')
+        self.df['Path'] = self.df['Path'].str.replace('CheXpert-v1.0', '')
         if use_frontal:
             self.df = self.df[self.df['Frontal/Lateral'] == 'Frontal']  
             

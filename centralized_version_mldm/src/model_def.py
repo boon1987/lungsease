@@ -2,14 +2,16 @@ import os, torch
 import numpy as np
 
 from typing import Any, Dict, Union, Sequence, cast, Tuple
-from determined import pytorch as det_pytorch
+from determined import pytorch as det_pytorch, pytorch
+#from determined.pytorch import p
 
 from libauc.optimizers import PESG, Adam
 from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
+from sklearn.metrics import roc_auc_score
 
-from .dataloader_robust import CheXpert
-from .model_densenet121 import Custom_Densenet121
-from .custom_losses import Custom_MultiLabel_AlphaBalanced_FocalLoss, calculate_multilabel_binary_class_weight
+from dataloader_robust import CheXpert
+from model_densenet121 import Custom_Densenet121
+from custom_losses import Custom_MultiLabel_AlphaBalanced_FocalLoss, calculate_multilabel_binary_class_weight
 
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
@@ -28,10 +30,13 @@ def set_computation_precision(matmul32=False, cudnn32=True):
     torch.backends.cudnn.allow_tf32 = cudnn32
     
 class LungDiseaseTrial(det_pytorch.PyTorchTrial):
-    def __init__(self, context: det_pytorch.yTorchTrialContext) -> None:
+    def __init__(self, context: det_pytorch.PyTorchTrialContext) -> None:
         self.context = context
         self.rank_number = self.context.distributed.get_rank()
         #self.download_directory = (f"/tmp/data-rank{self.context.distributed.get_rank()}"
+        
+        # check path
+        
          
         # Set Hyperparameters
         self.seed = self.context.get_hparam("seed")
@@ -53,8 +58,8 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         # Define dataset
         print('Create dataloader ...')
         train_cols=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis',  'Pleural Effusion']
-        self.traindSet   = CheXpert(csv_path=self.data_root+'train.csv', image_root_path=self.data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
-        self.valSet     =  CheXpert(csv_path=self.data_root+'valid.csv',  image_root_path=self.data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
+        self.traindSet   = CheXpert(csv_path=os.path.join(self.data_root, "train.csv"), image_root_path=self.data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='train', class_index=-1)
+        self.valSet     =  CheXpert(csv_path=os.path.join(self.data_root, "valid.csv"),  image_root_path=self.data_root, use_upsampling=True, use_frontal=True, image_size=320, mode='valid', class_index=-1)
         print('Create dataloader done.')
         print()
 
@@ -137,8 +142,9 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         # backward pass
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
-           
-        return {"train_loss": loss}
+        print(data.shape)
+   
+        return {"train_loss": loss, "train_data_size": data.shape[0]}
 
 
     def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
@@ -173,11 +179,28 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         output_logits = self.model(data)
         y_pred = torch.sigmoid(output_logits)
         loss = self.loss_fn(output_logits, labels)
+        
+        print(labels)
+        print(y_pred)
+        print(output_logits.shape)
+        print(y_pred.shape)
+        #y_pred_numpy = y_pred.detach().cpu().numpy()
+        #val_auc_mean =  roc_auc_score(labels.cpu().numpy(), y_pred_numpy, average="macro")
+        print(data.shape)
 
         # pred = output_logits.argmax(dim=1, keepdim=True)
         # accuracy = pred.eq(labels.view_as(pred)).sum().item() / len(data)
         
-        return {"val_loss": loss}
+        #return {"val_loss": loss, "val_auc_mean": val_auc_mean}
+        return {"val_loss": loss, "val_data_size": data.shape[0]}
+    
+    def evaluation_reducer(self) -> Union[pytorch.Reducer, Dict[str, pytorch.Reducer]]:
+        """
+        Return a reducer for all evaluation metrics, or a dict mapping metric
+        names to individual reducers. Defaults to :obj:`determined.pytorch.Reducer.AVG`.
+        """
+        return pytorch.Reducer.SUM
+
     
     # def predict(
     #     self, X: np.ndarray, names, meta
