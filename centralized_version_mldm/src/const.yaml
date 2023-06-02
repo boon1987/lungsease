@@ -20,10 +20,10 @@ resources:
     slots_per_trial: 1
 max_restarts: 0
 
-bind_mounts: 
-  - container_path: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small 
-    host_path: /mnt/mapr_nfs/determined 
-    propagation: rprivate 
-    read_only: false 
-environment:
-  image: boon1987/mlde_lung_disease:latest
+# bind_mounts: 
+#   - container_path: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small 
+#     host_path: /mnt/mapr_nfs/determined 
+#     propagation: rprivate 
+#     read_only: false 
+# environment:
+#   image: boon1987/mlde_lung_disease:latest
