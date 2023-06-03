@@ -12,6 +12,7 @@ from sklearn.metrics import roc_auc_score
 from dataloader_robust import CheXpert
 from model_densenet121 import Custom_Densenet121
 from custom_losses import Custom_MultiLabel_AlphaBalanced_FocalLoss, calculate_multilabel_binary_class_weight
+from det_metric_reducer import CustomMetricReducer_PRROC
 
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
@@ -96,6 +97,8 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         # wrap things up
         self.model = self.context.wrap_model(model_wrapper.model)
         self.optimizer =  self.context.wrap_optimizer(optimizer)
+        
+        self.my_avg = context.wrap_reducer(CustomMetricReducer_PRROC(), name=None, for_training=False, for_validation=True)
 
     
     def build_training_data_loader(self) -> det_pytorch.DataLoader:
@@ -175,12 +178,14 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         # val_metrics['best_val_auc'].append([float(best_val_auc)])
 
         batch = cast(Tuple[torch.Tensor, torch.Tensor], batch)
-        data, labels = batch
+        data, y_targets = batch
         output_logits = self.model(data)
         y_pred = torch.sigmoid(output_logits)
-        loss = self.loss_fn(output_logits, labels)
+        loss = self.loss_fn(output_logits, y_targets)
         
-        print(labels)
+        self.my_avg.update(y_pred, y_targets)
+        
+        print(y_targets)
         print(y_pred)
         print(output_logits.shape)
         print(y_pred.shape)
@@ -199,7 +204,7 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         Return a reducer for all evaluation metrics, or a dict mapping metric
         names to individual reducers. Defaults to :obj:`determined.pytorch.Reducer.AVG`.
         """
-        return pytorch.Reducer.SUM
+        return pytorch.Reducer.AVG
 
     
     # def predict(
