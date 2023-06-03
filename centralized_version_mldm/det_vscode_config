@@ -1,0 +1,65 @@
+# det -m 10.90.1.51 shell start --config-file /home/boon1987/Desktop/Local_HPE_Project/mldm-mlde/det_vscode_config -w khanghua.boon --show-ssh-command
+
+bind_mounts:  
+
+  - container_path: /run/determined/workdir/shared_fs 
+
+    host_path: /mnt/mapr_nfs/determined 
+
+    propagation: rprivate 
+
+    read_only: false 
+
+  - container_path: /determined_shared_fs 
+
+    host_path: /mnt/mapr_nfs/determined/det_checkpoints 
+
+    propagation: rprivate 
+
+    read_only: false 
+
+debug: false 
+
+description: avc 
+
+entrypoint: null 
+
+environment: 
+
+  add_capabilities: null 
+
+  drop_capabilities: null 
+
+  environment_variables: {} 
+
+  force_pull_image: false 
+
+  image: 
+
+    cuda: boon1987/mlde_mpi_lung_disease:latest
+
+  pod_spec: null 
+
+  ports: null 
+
+  proxy_ports: null 
+
+idle_timeout: null 
+
+notebook_idle_type: kernels_or_terminals 
+
+pbs: {} 
+
+resources: 
+
+  devices: null 
+
+  resource_pool: gpu-v100 
+
+  slots: 1 
+
+  weight: 1 
+
+slurm: {} 
+
+work_dir: null 
