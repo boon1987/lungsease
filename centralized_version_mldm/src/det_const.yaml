@@ -2,6 +2,7 @@ project: "Lung Disease Project"
 workspace: khanghua.boon
 description: Lung_PyTorch_const
 hyperparameters:
+    dataloader_num_worker: 4
     seed: 123
     amp_mode: False
     global_batch_size: 192
@@ -17,20 +18,34 @@ searcher:
     metric: val_loss
     smaller_is_better: true
     max_length:
-        epochs: 5
+        epochs: 3
         #batches: 100
-entrypoint: model_def:LungDiseaseTrial
+entrypoint: det_model_def:LungDiseaseTrial
 resources:
     slots_per_trial: 4
-    #resource_pool: gpu-v100 
+    resource_pool: gpu-v100 
 max_restarts: 1
 
+# Custom 1: bind mount for nfs stored data
 bind_mounts: 
   - container_path: /run/determined/workdir/shared_fs
     host_path: /mnt/mapr_nfs/determined 
     propagation: rprivate 
     read_only: false 
+
+# Custom 2: Custom docker images
 environment:
   image: 
     cuda: boon1987/mlde_lung_disease:latest
+
+# Custom 3: Profiling
+profiling:
+  enabled: true
+  begin_on_batch: 0
+  end_after_batch: 99
+  sync_timings: true
+
+# Custom 4: Reproducibility
+reproducibility:
+  experiment_seed: 123
 

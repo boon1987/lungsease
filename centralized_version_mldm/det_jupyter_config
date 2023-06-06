@@ -16,7 +16,7 @@ environment:
   environment_variables: {} 
   force_pull_image: false 
   image: 
-    cuda: boon1987/det_image_test1:latest 
+    cuda: boon1987/mlde_lung_disease:latest 
   pod_spec: 
     apiVersion: v1 
     kind: Pod 
