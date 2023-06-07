@@ -47,6 +47,7 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
         self.weight_decay = self.context.get_hparam("weight_decay")  
         self.data_root = self.context.get_hparam("data_root")
         self.dataloader_num_worker = self.context.get_hparam("dataloader_num_worker")
+        self.dataloader_prefetch_factor = self.context.get_hparam("dataloader_prefetch_factor")
         
         if self.amp_mode:
             pass
@@ -103,11 +104,11 @@ class LungDiseaseTrial(det_pytorch.PyTorchTrial):
 
     
     def build_training_data_loader(self) -> det_pytorch.DataLoader:
-        return det_pytorch.DataLoader(self.traindSet, num_workers=self.dataloader_num_worker, batch_size=self.context.get_per_slot_batch_size(), drop_last=True, shuffle=True)
+        return det_pytorch.DataLoader(self.traindSet, num_workers=self.dataloader_num_worker, prefetch_factor=self.dataloader_prefetch_factor, batch_size=self.context.get_per_slot_batch_size(), drop_last=True, shuffle=True)
 
 
     def build_validation_data_loader(self) -> det_pytorch.DataLoader:
-        return det_pytorch.DataLoader(self.valSet, num_workers=self.dataloader_num_worker, batch_size=self.context.get_per_slot_batch_size(), drop_last=False, shuffle=False)
+        return det_pytorch.DataLoader(self.valSet, num_workers=self.dataloader_num_worker, prefetch_factor=self.dataloader_prefetch_factor, batch_size=self.context.get_per_slot_batch_size(), drop_last=False, shuffle=False)
 
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int)  -> Dict[str, Any]:
