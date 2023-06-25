@@ -8,7 +8,7 @@ resources:
     #native_parallel: false
     resource_pool: gpu-v100         # specifying the resource pool.
     shm_size: null                  # size of /dev/shm.
-    slots_per_trial: 4              
+    slots_per_trial: 2              
     weight: 1                       # used in fair-share scheduler
     priority: null                  # used in priority scheduler.
 max_restarts: 1                     # Maximum number of restarting the trial if the trial fails. 
@@ -17,7 +17,7 @@ max_restarts: 1                     # Maximum number of restarting the trial if 
 #records_per_epoch: 60000
 perform_initial_validation: true     # Whether to perform validation action before the training start.
 min_validation_period:               # Specifying the temporal interval for validation action, i.e, perform validation after specified number of batches, records or epochs from previous validation action.
-    batches: 100       
+    batches: 10       
 
 # Custom 1: bind mount for nfs stored data
 bind_mounts: 
@@ -63,10 +63,10 @@ min_checkpoint_period:                                # Specify the temporal int
 # Custom 6: Hyper-parameter searches
 hyperparameters:
     dataloader_num_worker: 2
-    dataloader_prefetch_factor: 20
+    dataloader_prefetch_factor: 10
     seed: 123
     amp_mode: False
-    global_batch_size: 192
+    global_batch_size: 64
     lr: 0.001                     # using smaller learning rate is better
     weight_decay: 1e-5
     data_root: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small

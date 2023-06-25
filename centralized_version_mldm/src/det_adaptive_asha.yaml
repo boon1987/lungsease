@@ -4,11 +4,11 @@ description: Lung_PyTorch_const
 entrypoint: det_model_def:LungDiseaseTrial
 resources:
     devices: []
-    max_slots: null                 # max slots per experiment.
+    max_slots: null                 # max slots that can be allocated to this experiment.
     #native_parallel: false
     resource_pool: gpu-v100         # specifying the resource pool.
     shm_size: null                  # size of /dev/shm.
-    slots_per_trial: 4              
+    slots_per_trial: 1              
     weight: 1                       # used in fair-share scheduler
     priority: null                  # used in priority scheduler.
 max_restarts: 1                     # Maximum number of restarting the trial if the trial fails. 
@@ -33,6 +33,7 @@ environment:
 # With environment + resource_manager + resource_pools in the configuration yaml file, we can specify the following scheduling behaviour:
 #   Determined Native: Fairshare, Priority
 #   K8s special: Gang, Priority
+#   HPC Workload manager: SLUM, PBS
 
 # Custom 3: Profiling
 profiling:
@@ -52,37 +53,53 @@ checkpoint_storage:
   host_path: /mnt/mapr_nfs/determined/det_checkpoints
   storage_path: null                                  # must be subdirectory of host_path. If unset, the checkpoints are read and written to host_path
   propagation: rprivate
-  save_experiment_best: 0                             # During the traiing, save such number of top-k best checkpoints that are collected ans sorted over all trials. 
-  save_trial_best: 5                                 # During the training, each trial in an experiment save such number of best checkpoints according to the metric in searcher section. 
-  save_trial_latest: 3                                # After experiment ends, save such number of checkpoints for each trial. Note that if the latest checkpoint is one of the best checkpoints in save_trial_best, then it does not save any extra older checkpoint.
-min_checkpoint_period:                                # Specify the temporal interval for checkpointing action, i.e, create a new checkpoint after specified number of batches, records or epochs from previous checkpointing action.
-  #records:
-  #epochs:
-  batches: 0
+  save_experiment_best: 20                             # During the training, save such number of top-k best checkpoints that are collected ans sorted over all trials. 
+  save_trial_best: 0                                  # During the training, each trial in an experiment save such number of best checkpoints according to the metric in searcher section. 
+  save_trial_latest: 0                                # After experiment ends, save such number of checkpoints for each trial. Note that if the latest checkpoint is one of the best checkpoints in save_trial_best, then it does not save any extra older checkpoint.
+# min_checkpoint_period:                                # Specify the temporal interval for checkpointing action, i.e, create a new checkpoint after specified number of batches, records or epochs from previous checkpointing action.
+#   #records:
+#   #epochs:
+#   batches: 0
 
 # Custom 6: Hyper-parameter searches
 hyperparameters:
     dataloader_num_worker: 2
-    dataloader_prefetch_factor: 20
+    dataloader_prefetch_factor: 10
     seed: 123
     amp_mode: False
-    global_batch_size: 192
-    lr: 0.001                     # using smaller learning rate is better
-    weight_decay: 1e-5
+    global_batch_size: 48
+    lr:
+      type: log
+      minval: -5
+      maxval: -3
+      base: 10.0
+    weight_decay:
+      type: double
+      minval: 1e-5
+      maxval: 1e-3
     data_root: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small
 searcher:
-    name: single
-    metric: val_auc_mean
-    smaller_is_better: false
+    #bracket_rungs: []
+    divisor: 4                # 1/divisor*100 fraction of trials to keep at each rung
+    max_concurrent_trials: 8
     max_length:
-        epochs: 3
-        #batches: 100
+      batches: 10000
+      #epochs: 3
+    max_rungs: 5              # Maximum number of times evaluating a trial to determine whether to terminate it.
+    max_trials: 500
+    metric: val_auc_mean
+    mode: aggressive            # Aggressive, conservative, standard
+    name: adaptive_asha
+    smaller_is_better: false
+    source_checkpoint_uuid: null
+    source_trial_id: null
+    stop_once: false
 
 
-# Custom 7: Model Registry
-# Custom 8: Trial vs Core API differences
-# Custom 9: Model HUB
-# Custom 10: HPC Workload manager (not k8s)
+# Custom 7: Model Registry - Use together with parchyderm.
+# Custom 8: Trial vs Core API differences - Study later. Had a glance on Core API, which is easy to use.
+# Custom 9: Model HUB - Study later after pachyderm working. Next week.
+# Custom 10: HPC Workload manager (not k8s) - Refer to Alicia
     # Slurm
     # PBS
 
@@ -134,12 +151,4 @@ searcher:
 #     type: double
 #     minval: 1.1
 #     maxval: 1.5
-# searcher:
-#   name: adaptive_asha
-#   metric: val_dice
-#   smaller_is_better: False
-#   max_length:
-#     epochs: 25
-#   max_trials: 8
-#   max_concurrent_trials: 2
 
