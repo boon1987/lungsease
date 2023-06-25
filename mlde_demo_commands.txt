@@ -1,0 +1,19 @@
+1.0 git clone  https://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@github.com/boon1987/lungsease.git ./lung_disease_demo 
+2.0 cd lung_disease_demo/centralized_version_mldm/src
+
+3.0 pip install determined
+
+4.0 Login to MLDE Cluster 
+det -m 10.90.1.51 user login khanghua.boon
+MLDEP@ssw0rdHPE
+
+5.0 Submit Lung Disease Model Training as Experiment to MLDE Cluster 
+det -m 10.90.1.51 e create ./det_const.yaml .
+det -m 10.90.1.51 --help
+
+5.0 Submit Lung Disease Model Training as Experiment to MLDE Cluster 
+det -m 10.90.1.51 e create ./det_const.yaml .
+det -m 10.90.1.51 --help
+
+6.0 Hyperparameter Search
+ det -m 10.90.1.51 e create ./det_adaptive_asha.yaml .
