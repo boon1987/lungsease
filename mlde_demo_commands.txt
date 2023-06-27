@@ -1,4 +1,4 @@
-1.0 git clone  https://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@github.com/boon1987/lungsease.git ./lung_disease_demo 
+1.0 git clone  https://github.com/boon1987/lungsease.git ./lung_disease_demo 
 2.0 cd lung_disease_demo/centralized_version_mldm/src
 
 3.0 pip install determined
