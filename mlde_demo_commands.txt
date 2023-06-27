@@ -5,7 +5,6 @@
 
 4.0 Login to MLDE Cluster 
 det -m 10.90.1.51 user login khanghua.boon
-MLDEP@ssw0rdHPE
 
 5.0 Submit Lung Disease Model Training as Experiment to MLDE Cluster 
 det -m 10.90.1.51 e create ./det_const.yaml .
