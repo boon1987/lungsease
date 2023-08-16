@@ -1,0 +1,46 @@
+bind_mounts: 
+  - container_path: /run/determined/workdir/shared_fs 
+    host_path: /mnt/mapr_nfs/determined 
+    propagation: rprivate 
+    read_only: false 
+  - container_path: /determined_shared_fs 
+    host_path: /mnt/mapr_nfs/determined/det_checkpoints 
+    propagation: rprivate 
+    read_only: false 
+debug: false 
+description: boon_nb 
+entrypoint: null 
+environment: 
+  add_capabilities: null 
+  drop_capabilities: null 
+  environment_variables: {} 
+  force_pull_image: false 
+  image: 
+    cuda: boon1987/mlde_lung_disease:latest 
+  pod_spec: 
+    apiVersion: v1 
+    kind: Pod 
+    metadata: 
+      creationTimestamp: null 
+    spec: 
+      containers: 
+        - name: determined-container 
+          resources: {} 
+      tolerations: 
+        - effect: NoSchedule 
+          key: accelerator_type 
+          operator: Equal 
+          value: gpu-v100 
+    status: {} 
+  ports: null 
+  proxy_ports: null 
+idle_timeout: 1h0m0s 
+notebook_idle_type: kernels_or_terminals 
+pbs: {} 
+resources: 
+  devices: null 
+  resource_pool: gpu-v100 
+  slots: 1 
+  weight: 1 
+slurm: {} 
+work_dir: null 

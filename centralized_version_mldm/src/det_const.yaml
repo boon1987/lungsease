@@ -21,8 +21,8 @@ min_validation_period:               # Specifying the temporal interval for vali
 
 # Custom 1: bind mount for nfs stored data
 bind_mounts: 
-  - container_path: /run/determined/workdir/shared_fs
-    host_path: /mnt/mapr_nfs/determined 
+  - container_path: /run/determined/workdir/shared_fs #/run/determined/workdir/shared_fs/boon/LungDiseaseDataset/CheXpert-v1.0-small/train.csv
+    host_path: /mnt/mapr_nfs/shared-nb
     propagation: rprivate 
     read_only: false 
 
@@ -49,7 +49,7 @@ reproducibility:
 checkpoint_policy: best                               # the value are either: best, all or none
 checkpoint_storage:
   type: shared_fs
-  host_path: /mnt/mapr_nfs/determined/det_checkpoints
+  host_path: /mnt/mapr_nfs/determined/checkpoints
   storage_path: null                                  # must be subdirectory of host_path. If unset, the checkpoints are read and written to host_path
   propagation: rprivate
   save_experiment_best: 0                             # During the traiing, save such number of top-k best checkpoints that are collected ans sorted over all trials. 
@@ -69,7 +69,7 @@ hyperparameters:
     global_batch_size: 64
     lr: 0.001                     # using smaller learning rate is better
     weight_decay: 1e-5
-    data_root: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small
+    data_root: /run/determined/workdir/shared_fs/boon/LungDiseaseDataset/CheXpert-v1.0-small #/run/determined/workdir/shared_fs/boon/LungDiseaseDataset/CheXpert-v1.0-small
 searcher:
     name: single
     metric: val_auc_mean
