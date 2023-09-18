@@ -1,5 +1,5 @@
 project: "Lung Disease Project"
-workspace: khanghua.boon
+workspace: khang-hua.boon
 description: Lung_PyTorch_const
 entrypoint: det_model_def:LungDiseaseTrial
 resources:
@@ -22,7 +22,7 @@ min_validation_period:               # Specifying the temporal interval for vali
 # Custom 1: bind mount for nfs stored data
 bind_mounts: 
   - container_path: /run/determined/workdir/shared_fs
-    host_path: /mnt/mapr_nfs/determined 
+    host_path: /mnt/truenas1/mlde-shared-nb
     propagation: rprivate 
     read_only: false 
 
@@ -50,7 +50,7 @@ reproducibility:
 checkpoint_policy: best                               # the value are either: best, all or none
 checkpoint_storage:
   type: shared_fs
-  host_path: /mnt/mapr_nfs/determined/det_checkpoints
+  host_path: /mnt/mapr_nfs/determined/checkpoints
   storage_path: null                                  # must be subdirectory of host_path. If unset, the checkpoints are read and written to host_path
   propagation: rprivate
   save_experiment_best: 20                             # During the training, save such number of top-k best checkpoints that are collected ans sorted over all trials. 
@@ -77,7 +77,7 @@ hyperparameters:
       type: double
       minval: 1e-5
       maxval: 1e-3
-    data_root: /run/determined/workdir/shared_fs/LungDiseaseDataset/CheXpert-v1.0-small
+    data_root: /run/determined/workdir/shared_fs/boon/LungDiseaseDataset/CheXpert-v1.0-small
 searcher:
     #bracket_rungs: []
     divisor: 4                # 1/divisor*100 fraction of trials to keep at each rung

@@ -1,5 +1,5 @@
 project: "Lung Disease Project"
-workspace: khanghua.boon
+workspace: khang-hua.boon
 description: Lung_PyTorch_const
 entrypoint: det_model_def:LungDiseaseTrial
 resources:
@@ -22,7 +22,7 @@ min_validation_period:               # Specifying the temporal interval for vali
 # Custom 1: bind mount for nfs stored data
 bind_mounts: 
   - container_path: /run/determined/workdir/shared_fs #/run/determined/workdir/shared_fs/boon/LungDiseaseDataset/CheXpert-v1.0-small/train.csv
-    host_path: /mnt/mapr_nfs/shared-nb
+    host_path: /mnt/truenas1/mlde-shared-nb
     propagation: rprivate 
     read_only: false 
 
